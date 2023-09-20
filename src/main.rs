@@ -1,4 +1,4 @@
-use std::fmt::Display;
+use std::{fmt::Display, rc::Rc};
 use strum::IntoEnumIterator;
 use strum_macros::EnumIter;
 
@@ -45,7 +45,7 @@ impl Display for Action {
             Action::Add => "+".to_owned(),
             Action::Sub | Action::RSub => "-".to_owned(),
             Action::Mul => "*".to_owned(),
-            Action::Div | Action::RDiv => "÷".to_owned(),
+            Action::Div | Action::RDiv => "/".to_owned(),
         };
         write!(f, "{}", symbol)?;
         Ok(())
@@ -55,7 +55,7 @@ impl Display for Action {
 #[derive(Debug)]
 enum Number {
     Single(i32),
-    Double(Action, Box<Number>, Box<Number>, i32),
+    Double(Action, Rc<Number>, Rc<Number>, i32),
 }
 
 impl Number {
@@ -63,25 +63,14 @@ impl Number {
         Self::Single(n)
     }
 
-    fn double(action: Action, a: Number, b: Number) -> Option<Self> {
+    fn double(action: Action, a: Rc<Number>, b: Rc<Number>) -> Option<Self> {
         let (a_val, b_val) = (a.value(), b.value());
         Some(Self::Double(
             action,
-            Box::new(a),
-            Box::new(b),
+            a.clone(),
+            b.clone(),
             action.perform(a_val, b_val)?,
         ))
-    }
-}
-
-impl Clone for Number {
-    fn clone(&self) -> Self {
-        match self {
-            Self::Single(n) => Self::Single(*n),
-            Self::Double(action, a, b, value) => {
-                Self::Double(*action, a.clone(), b.clone(), *value)
-            }
-        }
     }
 }
 
@@ -121,7 +110,7 @@ impl PartialEq<i32> for Number {
 
 impl Eq for Number {}
 
-type Combination = Vec<Number>;
+type Combination = Vec<Rc<Number>>;
 
 struct MyPermutator {
     init_combination: Combination,
@@ -177,41 +166,32 @@ impl Iterator for MyPermutator {
             self.init_combination[self.b].clone(),
         );
 
-        match new_number {
-            Some(new_number) => {
-                let mut result = vec![new_number];
+        if let Some(new_number) = new_number {
+            let mut result = vec![Rc::new(new_number)];
 
-                for (i, item) in self.init_combination.iter().enumerate() {
-                    if i != self.a && i != self.b {
-                        result.push(item.clone())
-                    }
+            for (i, item) in self.init_combination.iter().enumerate() {
+                if i != self.a && i != self.b {
+                    result.push(item.clone())
                 }
-                Some(result)
             }
-            None => self.next(),
+            Some(result)
+        } else {
+            self.next()
         }
     }
 }
 
-fn solve() -> Option<Number> {
-    let target = 634;
-
-    // let init_vec = vec![100, 50, 25, 8, 5, 8];
-    let init_vec = vec![50, 100, 25, 2, 7, 2];
-
-    let init_numbers: Combination = init_vec.iter().map(|x| Number::single(*x)).collect();
-    let mut combinations = vec![init_numbers];
-
+fn solve(mut combinations: Vec<Combination>, target: i32) -> Option<Rc<Number>> {
     while !combinations.is_empty() {
         let mut new_combinations: Vec<Combination> = vec![];
         for combination in combinations {
             let my_permutator = MyPermutator::new(combination);
 
             for item in my_permutator {
-                if item[0] == target {
+                if *item[0] == target {
                     return Some(item[0].clone());
                 }
-                new_combinations.push(item);
+                new_combinations.push(item.clone());
             }
         }
         combinations = new_combinations;
@@ -220,7 +200,18 @@ fn solve() -> Option<Number> {
 }
 
 fn main() {
-    let solution = solve();
+    let target = 634;
+
+    // let init_vec = vec![100, 50, 25, 8, 5, 8];
+    let init_vec = vec![50, 100, 25, 2, 7, 2];
+
+    let init_numbers: Combination = init_vec
+        .iter()
+        .map(|x| Rc::new(Number::single(*x)))
+        .collect();
+    let combinations: Vec<Combination> = vec![init_numbers];
+
+    let solution = solve(combinations, target);
     match solution {
         Some(number) => println!("{} = {}", number, number.value()),
         None => println!("There's no solution"),
