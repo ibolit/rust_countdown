@@ -43,11 +43,9 @@ impl Display for Action {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         let symbol = match self {
             Action::Add => "+".to_owned(),
-            Action::Sub => "-".to_owned(),
-            Action::RSub => "-".to_owned(),
+            Action::Sub | Action::RSub => "-".to_owned(),
             Action::Mul => "*".to_owned(),
-            Action::Div => "÷".to_owned(),
-            Action::RDiv => "÷".to_owned(),
+            Action::Div | Action::RDiv => "÷".to_owned(),
         };
         write!(f, "{}", symbol)?;
         Ok(())
@@ -196,9 +194,10 @@ impl Iterator for MyPermutator {
 }
 
 fn solve() -> Option<Number> {
-    let target = 334;
+    let target = 634;
 
-    let init_vec = vec![100, 50, 25, 8, 5, 8];
+    // let init_vec = vec![100, 50, 25, 8, 5, 8];
+    let init_vec = vec![50, 100, 25, 2, 7, 2];
 
     let init_numbers: Combination = init_vec.iter().map(|x| Number::single(*x)).collect();
     let mut combinations = vec![init_numbers];
